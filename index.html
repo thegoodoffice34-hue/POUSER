@@ -268,12 +268,18 @@
 
             <div class="mb-8">
                 <p><b>การเสนอราคาซื้อขาย อยู่ภายใต้เงื่อนไขต่อไปนี้</b></p>
-                <p>1. ใบเสนอราคานี้จะยืนราคาอยู่ในระยะเวลา 30 วัน นับตั้งแต่วันที่ได้ยื่นใบเสนอราคา</p>
-                <p class="flex items-center gap-2">
-                    2. กำหนดส่งมอบพัสดุตามรายละเอียดรายการข้างต้น ภายใน 30 วัน นับถัดจากวันลงนาม 
+                <div class="flex items-center gap-2">
+                    <span>1. ใบเสนอราคานี้จะยืนราคาอยู่ในระยะเวลา</span>
+                    <input type="text" v-model="validDays" class="form-input w-10 text-center p-0 m-0 h-6 font-bold text-red-600 print:text-black">
+                    <span>วัน นับตั้งแต่วันที่ได้ยื่นใบเสนอราคา</span>
+                </div>
+                <div class="flex items-center gap-2 mt-1">
+                    <span>2. กำหนดส่งมอบพัสดุตามรายละเอียดรายการข้างต้น ภายใน</span>
+                    <input type="text" v-model="deliveryDays" class="form-input w-10 text-center p-0 m-0 h-6 font-bold text-red-600 print:text-black">
+                    <span>วัน นับถัดจากวันลงนาม</span>
                     <label class="cursor-pointer flex items-center gap-1"><input type="radio" v-model="docType" value="buy" class="no-print"> <span :class="{'font-bold': docType=='buy'}">( / )ซื้อ</span></label>
                     <label class="cursor-pointer flex items-center gap-1"><input type="radio" v-model="docType" value="hire" class="no-print"> <span :class="{'font-bold': docType=='hire'}">( &nbsp; )จ้าง</span></label>
-                </p>
+                </div>
             </div>
 
             <!-- ส่วนลายเซ็น (ปรับให้ตรงตามรูปใหม่) -->
@@ -392,6 +398,8 @@
                     ],
                     hasVat: true, 
                     docType: 'buy', // 'buy' or 'hire'
+                    validDays: localStorage.getItem('tjc_validDays') || '30',
+                    deliveryDays: localStorage.getItem('tjc_deliveryDays') || '30',
                     sellerName: localStorage.getItem('tjc_sellerName') || 'นายสนั่น สุตัญตั้งใจ',
                     sellerPosition: localStorage.getItem('tjc_sellerPosition') || 'ประธานบริษัท',
                     buyerName: localStorage.getItem('tjc_buyerName') || 'นายณัฐกิตติ์ เกตุศรสังข์',
@@ -403,6 +411,8 @@
                 }
             },
             watch: {
+                validDays(val) { localStorage.setItem('tjc_validDays', val); },
+                deliveryDays(val) { localStorage.setItem('tjc_deliveryDays', val); },
                 sellerName(val) { localStorage.setItem('tjc_sellerName', val); },
                 sellerPosition(val) { localStorage.setItem('tjc_sellerPosition', val); },
                 buyerName(val) { localStorage.setItem('tjc_buyerName', val); },
