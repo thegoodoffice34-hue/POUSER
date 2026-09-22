@@ -21,9 +21,10 @@
 
         /* สไตล์สำหรับการ Print/Save เป็น PDF */
         @media print {
+            @page { size: A4; margin: 0; } /* ปิด Header/Footer ของ Browser (วันที่/ลิงก์) */
             .no-print { display: none !important; }
             body { background: white; margin: 0; padding: 0; }
-            .paper { box-shadow: none !important; width: 100% !important; margin: 0 !important; padding: 0 !important; }
+            .paper { box-shadow: none !important; width: 100% !important; height: auto !important; margin: 0 !important; padding: 12mm 20mm !important; }
             input, textarea { border: none !important; background: transparent !important; resize: none; color: black !important; padding: 0 !important; }
             /* ซ่อน Placeholder ตอน Print */
             input::placeholder, textarea::placeholder { color: transparent; }
@@ -283,7 +284,7 @@
             </div>
 
             <!-- ส่วนลายเซ็น (ปรับให้ตรงตามรูปใหม่) -->
-            <div class="flex justify-between px-10 mt-16">
+            <div class="flex justify-between px-10 mt-8">
                 
                 <!-- ฝั่งซ้าย: ผู้สั่งซื้อ (ตามรูปใหม่) -->
                 <div class="text-center relative group w-48">
