@@ -122,7 +122,9 @@
                 <button @click="addItem" class="bg-indigo-100 text-indigo-700 px-3 py-2 rounded hover:bg-indigo-200 font-medium text-sm">+ เพิ่มรายการสินค้าใหม่</button>
                 <button @click="exportExcel" class="bg-green-600 text-white px-3 py-2 rounded hover:bg-green-700 font-medium text-sm">📥 โหลด Excel</button>
                 <button onclick="window.print()" class="bg-red-500 text-white px-3 py-2 rounded hover:bg-red-600 font-medium text-sm">🖨️ Save เป็น PDF</button>
-                <button @click="nextDoc" class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 font-medium text-sm shadow">🔄 เคลียร์ & รันเลขใหม่</button>
+                <button @click="nextDoc" :disabled="isLoadingDocNo" :class="{'opacity-50 cursor-not-allowed': isLoadingDocNo}" class="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 font-medium text-sm shadow">
+                    🔄 {{ isLoadingDocNo ? 'กำลังโหลดเลข...' : 'เคลียร์ & รันเลขใหม่' }}
+                </button>
             </div>
         </div>
 
@@ -362,13 +364,8 @@
                     return `${day}/${month}/${year}`;
                 };
 
-                let savedDocNo = localStorage.getItem('tjc_lastDocNo2');
-                if (!savedDocNo) {
-                    const d = new Date();
-                    const mm = String(d.getMonth() + 1).padStart(2, '0');
-                    const yy = (d.getFullYear() + 543).toString().slice(-2);
-                    savedDocNo = `${yy}${mm}01`; // format YYMM01
-                }
+                // URL ของ Google Apps Script ที่เชื่อมกับฐานข้อมูล
+                const GOOGLE_SHEET_API = 'https://script.google.com/macros/s/AKfycbyhKZhdqFo-HGMZmZ_V09zND7FPlA_F8MAWqdFYkv4ozGIiAIQuoLhV6ndyb3U4X-LquA/exec';
 
                 // โหลดรูปลายเซ็นและการตั้งค่าจาก LocalStorage
                 const savedSellerSig = localStorage.getItem('tjc_sellerSig');
@@ -382,7 +379,8 @@
                 savedBuyerStyle = savedBuyerStyle ? JSON.parse(savedBuyerStyle) : { ...defaultSigStyle };
 
                 return {
-                    docNo: savedDocNo,
+                    isLoadingDocNo: true,
+                    docNo: 'กำลังโหลด...',
                     docDate: getThaiDate(), 
                     customerName: 'โรงพยาบาลมะเร็งลพบุรี',
                     customerAddress1: '11/1 ต ทะเลชุบศร',
@@ -419,6 +417,7 @@
                 }
             },
             mounted() {
+                this.fetchCurrentDocNo();
                 this.$nextTick(() => {
                     document.querySelectorAll('textarea.overflow-hidden').forEach(el => {
                         if(el.scrollHeight > 0) {
@@ -442,6 +441,24 @@
                 grandTotal() { return this.subTotal + this.vatAmount; }
             },
             methods: {
+                async fetchCurrentDocNo() {
+                    this.isLoadingDocNo = true;
+                    try {
+                        const res = await fetch('https://script.google.com/macros/s/AKfycbyhKZhdqFo-HGMZmZ_V09zND7FPlA_F8MAWqdFYkv4ozGIiAIQuoLhV6ndyb3U4X-LquA/exec?action=get_current');
+                        const data = await res.json();
+                        if(data.status === 'success') {
+                            this.docNo = data.docNo;
+                        } else {
+                            console.error('API Error:', data.message);
+                            this.docNo = 'ERROR';
+                        }
+                    } catch (e) {
+                        console.error('Error fetching docNo:', e);
+                        this.docNo = 'ERROR';
+                    } finally {
+                        this.isLoadingDocNo = false;
+                    }
+                },
                 formatNumber(num) {
                     if (num === 0 || !num) return '';
                     return Number(num).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -456,35 +473,45 @@
                         this.items[0] = { name: '', desc: null, qty: 1, unit: 'เครื่อง', price: 0 };
                     }
                 },
-                nextDoc() {
+                async nextDoc() {
                     if(!confirm('ต้องการเคลียร์ข้อมูลลูกค้าและรันเลขเอกสารใหม่ใช่หรือไม่?')) return;
                     
-                    let match = this.docNo.match(/(\d+)$/);
-                    if (match) {
-                        let numStr = match[0];
-                        let num = parseInt(numStr, 10) + 1;
-                        this.docNo = this.docNo.substring(0, match.index) + String(num).padStart(numStr.length, '0');
-                    } else {
-                        this.docNo = this.docNo + '-01';
+                    this.isLoadingDocNo = true;
+                    let oldDocNo = this.docNo;
+                    this.docNo = 'กำลังดึงเลข...';
+                    
+                    try {
+                        const res = await fetch('https://script.google.com/macros/s/AKfycbyhKZhdqFo-HGMZmZ_V09zND7FPlA_F8MAWqdFYkv4ozGIiAIQuoLhV6ndyb3U4X-LquA/exec?action=increment');
+                        const data = await res.json();
+                        if (data.status === 'success') {
+                            this.docNo = data.docNo;
+                            
+                            const d = new Date();
+                            const day = String(d.getDate()).padStart(2, '0');
+                            const month = String(d.getMonth() + 1).padStart(2, '0');
+                            const year = (d.getFullYear() + 543).toString().slice(-2);
+                            this.docDate = `${day}/${month}/${year}`;
+                            
+                            this.customerName = '';
+                            this.customerAddress1 = '';
+                            this.customerAddress2 = '';
+                            this.customerPhone = '';
+                            // เก็บข้อมูลลูกค้าไว้ ไม่ล้างทิ้ง เพื่อให้เปลี่ยนเมื่อต้องการได้
+                            // this.buyerName = '';
+                            // this.buyerPosition = '';
+                            // this.buyerSig = null; 
+                            this.items = [{ name: '', desc: null, qty: 1, unit: 'เครื่อง', price: 0 }];
+                        } else {
+                            alert('เกิดข้อผิดพลาดจากฐานข้อมูล: ' + data.message);
+                            this.docNo = oldDocNo;
+                        }
+                    } catch (e) {
+                        console.error('Error incrementing docNo:', e);
+                        alert('ไม่สามารถเชื่อมต่อระบบรันเลขได้ กรุณาลองใหม่');
+                        this.docNo = oldDocNo;
+                    } finally {
+                        this.isLoadingDocNo = false;
                     }
-                    
-                    localStorage.setItem('tjc_lastDocNo2', this.docNo);
-                    
-                    const d = new Date();
-                    const day = String(d.getDate()).padStart(2, '0');
-                    const month = String(d.getMonth() + 1).padStart(2, '0');
-                    const year = (d.getFullYear() + 543).toString().slice(-2);
-                    this.docDate = `${day}/${month}/${year}`;
-                    
-                    this.customerName = '';
-                    this.customerAddress1 = '';
-                    this.customerAddress2 = '';
-                    this.customerPhone = '';
-                    // เก็บข้อมูลลูกค้าไว้ ไม่ล้างทิ้ง เพื่อให้เปลี่ยนเมื่อต้องการได้
-                    // this.buyerName = '';
-                    // this.buyerPosition = '';
-                    // this.buyerSig = null; 
-                    this.items = [{ name: '', desc: null, qty: 1, unit: 'เครื่อง', price: 0 }];
                 },
                 // ฟังก์ชันอัปโหลดลายเซ็น
                 uploadSig(event, type) {
